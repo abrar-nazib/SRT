@@ -5,13 +5,12 @@ import queue
 
 
 class CameraManager:
-    def __init__(self, camera_index=0):
+    def __init__(self, camera_index=2):
         self.cap = cv2.VideoCapture(camera_index)
 
-        # Set to 1080p
-        # Set to proper HD (720p) resolution
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        # Set to proper 1080p resolution
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
         # Use threading for better performance
         self.frame_queue = queue.Queue(maxsize=2)
