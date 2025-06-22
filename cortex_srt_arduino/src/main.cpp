@@ -19,8 +19,8 @@ float currentTilt = 90;
 // Servo limits
 const int PAN_MIN = 0;
 const int PAN_MAX = 180;
-const int TILT_MIN = 45;
-const int TILT_MAX = 135;
+const int TILT_MIN = 0;
+const int TILT_MAX = 180;
 
 // Smoothing
 const float SMOOTH_FACTOR = 0.3;
@@ -47,14 +47,11 @@ void setup()
 
 void loop()
 {
-  // if (Serial.available() > 0)
-  // {
-  //   String command = Serial.readStringUntil('\n');
-  //   parseCommand(command);
-  // }
-  Serial.println("Putting the servos in their default positions...");
-  delay(10000);
-  testServoPins();
+  if (Serial.available() > 0)
+  {
+    String command = Serial.readStringUntil('\n');
+    parseCommand(command);
+  }
 }
 
 void testServoPins()
@@ -107,7 +104,7 @@ void parseCommand(String command)
     int laser = command.substring(secondColon + 1).toInt();
 
     // Update positions with smoothing
-    float targetPan = currentPan + panDelta;
+    float targetPan = currentPan - panDelta;
     float targetTilt = currentTilt + tiltDelta;
 
     // Apply limits
@@ -117,20 +114,23 @@ void parseCommand(String command)
     // Smooth movement
     currentPan = currentPan + (targetPan - currentPan) * SMOOTH_FACTOR;
     currentTilt = currentTilt + (targetTilt - currentTilt) * SMOOTH_FACTOR;
+    // currentPan = targetPan; // For simplicity, we can directly set the target
+    // currentTilt = targetTilt;
 
     // Write to servos
-    panServo.write((int)currentPan);
-    tiltServo.write((int)currentTilt);
-
+    // panServo.write((int)currentPan);
+    // tiltServo.write((int)currentTilt);
+    panServo.writeMicroseconds((int)map(currentPan, PAN_MIN, PAN_MAX, 700, 2500));
+    tiltServo.writeMicroseconds((int)(map(currentTilt, TILT_MIN, TILT_MAX, 700, 2500)));
     // Control laser
     digitalWrite(LASER_PIN, laser ? HIGH : LOW);
 
     // Send acknowledgment
-    Serial.print("PAN:");
-    Serial.print(currentPan);
-    Serial.print(",TILT:");
-    Serial.print(currentTilt);
-    Serial.print(",LASER:");
-    Serial.println(laser);
+    // Serial.print("PAN:");
+    // Serial.print(currentPan);
+    // Serial.print(",TILT:");
+    // Serial.print(currentTilt);
+    // Serial.print(",LASER:");
+    // Serial.println(laser);
   }
 }

@@ -1,34 +1,48 @@
-# run_system.py
+# run_system.py (updated with rotation option)
 #!/usr/bin/env python3
 """
 Military-Grade Tracking System
-Usage: python run_system.py [--port COM3] [--camera 0]
+Usage: python run_system.py [--port COM3] [--camera 0] [--rotate 90]
 """
 
 import argparse
 import sys
 from main import TrackingSystem
-import traceback
 
 
 def main():
     parser = argparse.ArgumentParser(description="Military-Grade Tracking System")
     parser.add_argument("--port", default="COM3", help="Arduino serial port")
-    parser.add_argument("--camera", type=int, default=0, help="Camera index")
+    parser.add_argument("--camera", type=int, default=2, help="Camera index")
+    parser.add_argument(
+        "--rotate",
+        type=int,
+        default=90,
+        choices=[-90, 0, 90, 180],
+        help="Camera rotation angle (default: 90 for vertical)",
+    )
     parser.add_argument("--no-arduino", action="store_true", help="Run without Arduino")
 
     args = parser.parse_args()
 
     print("===========================================")
     print("   MILITARY TRACKING SYSTEM v1.0")
+    print("   VERTICAL CAMERA MODE")
     print("===========================================")
     print(f"Camera: {args.camera}")
+    print(f"Rotation: {args.rotate}°")
     print(f"Arduino Port: {args.port if not args.no_arduino else 'DISABLED'}")
     print("\nControls:")
     print("  - Left Click: Start tracking at cursor position")
+    print("  - Drag: Select target area")
     print("  - T: Switch tracking algorithm")
     print("  - R: Reset tracking")
+    print("  - F: Manual fire (when in fire zone)")
+    print("  - Space: Stop tracking")
     print("  - Q: Quit")
+    print("\nFire Zone:")
+    print("  - Target must be within 30 pixels of center")
+    print("  - Hold for 0.5 seconds to activate laser")
     print("\nAvailable Tracking Algorithms:")
     print("  1. CSRT - Accurate but slower")
     print("  2. KCF - Fast, works well with translation")
@@ -38,12 +52,15 @@ def main():
     print("===========================================\n")
 
     try:
-        system = TrackingSystem()
+        system = TrackingSystem(camera_index=args.camera, camera_rotate=args.rotate)
         system.run()
     except KeyboardInterrupt:
         print("\nSystem shutdown requested")
     except Exception as e:
-        print("An unexpected error occurred:")
+        print(f"Error: {e}")
+        # Print the stack trace for debugging
+        import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

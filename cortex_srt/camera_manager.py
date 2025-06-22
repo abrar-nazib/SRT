@@ -1,16 +1,33 @@
-# camera_manager.py
+# camera_manager.py (updated for vertical camera)
 import cv2
 import threading
 import queue
+import numpy as np
+import imutils
 
 
 class CameraManager:
-    def __init__(self, camera_index=2):
+    def __init__(self, camera_index=2, rotate_angle=90):
         self.cap = cv2.VideoCapture(camera_index)
+        self.frame_width = 1280
+        self.frame_height = 720
 
-        # Set to proper 1080p resolution
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        print(
+            "[INFO] Resolution in OpenCV:",
+            self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),
+            "x",
+            self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT),
+        )
+
+        self.rotate_angle = rotate_angle  # 90 for clockwise, -90 for counter-clockwise
+
+        # Set to proper 1080p resolution (will be rotated)
+        # self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+        # Check if the camera frame has been resized correctly
+        if not self.cap.isOpened():
+            raise RuntimeError(f"Could not open camera with index {camera_index}")
 
         # Use threading for better performance
         self.frame_queue = queue.Queue(maxsize=2)
@@ -23,7 +40,18 @@ class CameraManager:
     def _capture_frames(self):
         while self.running:
             ret, frame = self.cap.read()
+            frame = imutils.resize(
+                frame, width=self.frame_width, height=self.frame_height
+            )
             if ret:
+                # Rotate the frame
+                if self.rotate_angle == 90:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                elif self.rotate_angle == -90:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                elif self.rotate_angle == 180:
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+
                 if not self.frame_queue.full():
                     self.frame_queue.put(frame)
                 self.current_frame = frame

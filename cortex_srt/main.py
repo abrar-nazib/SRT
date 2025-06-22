@@ -1,4 +1,4 @@
-# main.py (updated version with fire zone detection)
+# main.py (corrected version)
 import cv2
 import numpy as np
 from datetime import datetime
@@ -16,8 +16,10 @@ from arduino_controller import ArduinoController
 
 
 class TrackingSystem:
-    def __init__(self):
-        self.camera = CameraManager()
+    def __init__(self, camera_index=0, camera_rotate=90):
+        self.camera = CameraManager(
+            camera_index=camera_index, rotate_angle=camera_rotate
+        )
         self.hud = HUDOverlay()
         self.tracker_factory = TrackerFactory()
         self.pid_controller = PIDController()
@@ -44,6 +46,9 @@ class TrackingSystem:
         self.in_fire_zone = False
         self.fire_zone_time = 0
         self.min_fire_zone_time = 0.5  # seconds before firing
+
+        # Debug flag
+        self.debug = True
 
     def run(self):
         cv2.namedWindow("Military Tracking System", cv2.WINDOW_NORMAL)
@@ -86,12 +91,29 @@ class TrackingSystem:
 
                     # Send PID commands
                     pan, tilt = self.pid_controller.update(error_x, error_y)
+
+                    if (
+                        self.debug and self.frame_count % 10 == 0
+                    ):  # Debug every 10 frames
+                        print(
+                            f"Tracking - Error: ({error_x:.1f}, {error_y:.1f}), "
+                            f"PID Out: ({pan:.2f}°, {tilt:.2f}°), "
+                            f"Fire Zone: {self.in_fire_zone}, Laser: {laser}"
+                        )
+
+                    print(
+                        f"Tracking frame {self.frame_count}: {self.algorithms[self.current_algorithm_idx]} - Success: {success} - BBox: {bbox} Error: ({error_x:.1f}, {error_y:.1f})"
+                    )
                     self.arduino_comm.send_command(pan, tilt, laser)
                 else:
+                    if self.debug:
+                        print("Tracking failed - target lost")
                     self.tracking_active = False
                     self.target_bbox = None
                     self.in_fire_zone = False
                     self.fire_zone_time = 0
+                    # Send stop command when tracking fails
+                    self.arduino_comm.send_command(0, 0, 0)
 
             # Draw selection box if selecting
             display_frame = frame.copy()
@@ -129,13 +151,27 @@ class TrackingSystem:
             elif key == ord("f"):  # Manual fire (when in fire zone)
                 if self.in_fire_zone and self.tracking_active:
                     print("Manual fire command!")
+                    self.arduino_comm.send_command(0, 0, 1)  # Fire laser
+            elif key == ord("d"):  # Toggle debug
+                self.debug = not self.debug
+                print(f"Debug mode: {'ON' if self.debug else 'OFF'}")
+            elif key == ord("c"):  # Center servos
+                print("Centering servos...")
+                self.arduino_comm.send_command(0, 0, 0)
 
         self.cleanup()
 
     def mouse_callback(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
+            if self.debug:
+                print("\n=== NEW TARGET SELECTION ===")
+
             # Always allow new selection, stop current tracking first
             self.stop_tracking()
+
+            # Small delay to ensure commands are processed
+            time.sleep(0.05)
+
             self.selecting = True
             self.selection_start = (x, y)
             self.selection_end = (x, y)
@@ -173,8 +209,12 @@ class TrackingSystem:
 
     def start_tracking(self, bbox):
         """Start tracking with a new target"""
+        if self.debug:
+            print(f"Starting new tracking with bbox: {bbox}")
+
         frame = self.camera.get_current_frame()
         if frame is None:
+            print("ERROR: No frame available for tracking initialization")
             return
 
         # Ensure bbox is within frame bounds
@@ -191,20 +231,34 @@ class TrackingSystem:
         self.current_tracker = self.tracker_factory.create_tracker(algorithm)
 
         try:
+            # Initialize tracker
             self.current_tracker.init(frame, bbox)
+
+            # Set tracking state
             self.target_bbox = bbox
             self.tracking_active = True
             self.in_fire_zone = False
             self.fire_zone_time = 0
-            self.pid_controller.reset()  # Reset PID controller for new target
-            print(f"New target locked: {bbox}")
+
+            # IMPORTANT: Reset PID controller for new target
+            self.pid_controller.reset()
+
+            if self.debug:
+                print(f"✓ Target locked successfully")
+                print(f"✓ Using {algorithm} tracker")
+                print(f"✓ PID controller reset")
+
         except Exception as e:
-            print(f"Failed to initialize tracker: {e}")
+            print(f"ERROR: Failed to initialize tracker: {e}")
             self.tracking_active = False
             self.target_bbox = None
+            self.current_tracker = None
 
     def stop_tracking(self):
         """Stop current tracking"""
+        if self.debug and self.tracking_active:
+            print("Stopping current tracking...")
+
         self.tracking_active = False
         self.target_bbox = None
         self.current_tracker = None
@@ -213,9 +267,20 @@ class TrackingSystem:
         self.selection_end = None
         self.in_fire_zone = False
         self.fire_zone_time = 0
+
+        # Reset PID controller
         self.pid_controller.reset()
-        # Send command to center servos and turn off laser
+
+        # Send stop command to Arduino (center servos and turn off laser)
         self.arduino_comm.send_command(0, 0, 0)
+
+        # Clear any pending commands
+        time.sleep(0.05)
+
+        if self.debug:
+            print("✓ Tracking stopped")
+            print("✓ Servos centered")
+            print("✓ Laser off")
 
     def switch_algorithm(self):
         self.current_algorithm_idx = (self.current_algorithm_idx + 1) % len(
@@ -229,21 +294,26 @@ class TrackingSystem:
             if frame is not None:
                 try:
                     self.current_tracker.init(frame, self.target_bbox)
+                    # Reset PID when switching algorithms
+                    self.pid_controller.reset()
                     print(f"Switched to {algorithm} tracker")
                 except Exception as e:
                     print(f"Failed to switch tracker: {e}")
                     self.stop_tracking()
+        else:
+            print(f"Algorithm set to: {self.algorithms[self.current_algorithm_idx]}")
 
     def reset_tracking(self):
         """Complete reset of the tracking system"""
         self.stop_tracking()
+        # Additional reset for Arduino
+        self.arduino_comm.send_command(0, 0, 0)
         print("Tracking system reset")
 
     def calculate_error(self, bbox, frame_shape):
         """Calculate pixel error from center of frame"""
         target_center_x = bbox[0] + bbox[2] / 2
         target_center_y = bbox[1] + bbox[3] / 2
-
         frame_center_x = frame_shape[1] / 2
         frame_center_y = frame_shape[0] / 2
 
@@ -260,12 +330,18 @@ class TrackingSystem:
             self.last_time = current_time
 
     def cleanup(self):
+        print("\nShutting down system...")
         self.stop_tracking()
+        time.sleep(0.1)  # Give time for final commands
         self.camera.release()
         self.arduino_comm.close()
         cv2.destroyAllWindows()
+        print("System shutdown complete")
 
 
 if __name__ == "__main__":
+    print("Starting Military Tracking System...")
+    print("Press 'D' to toggle debug mode")
+    print("Press 'C' to center servos manually")
     system = TrackingSystem()
     system.run()
