@@ -12,8 +12,13 @@ class TrackerFactory:
         elif algorithm == "MIL":
             return cv2.TrackerMIL_create()
         elif algorithm == "MOSSE":
-            return cv2.TrackerMOSSE_create()
-        elif algorithm == "MedianFlow":
-            return cv2.TrackerMedianFlow_create()
+            # Try legacy MOSSE first, then fall back to regular
+            try:
+                return cv2.legacy.TrackerMOSSE_create()
+            except AttributeError:
+                try:
+                    return cv2.TrackerMOSSE_create()
+                except AttributeError:
+                    raise ValueError(f"MOSSE tracker not available in this OpenCV version")
         else:
             raise ValueError(f"Unknown tracking algorithm: {algorithm}")

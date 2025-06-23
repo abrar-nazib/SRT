@@ -22,8 +22,8 @@ class CameraManager:
         self.rotate_angle = rotate_angle  # 90 for clockwise, -90 for counter-clockwise
 
         # Set to proper 1080p resolution (will be rotated)
-        # self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
         # Check if the camera frame has been resized correctly
         if not self.cap.isOpened():

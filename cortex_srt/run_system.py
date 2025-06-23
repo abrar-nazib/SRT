@@ -12,8 +12,8 @@ from main import TrackingSystem
 
 def main():
     parser = argparse.ArgumentParser(description="Military-Grade Tracking System")
-    parser.add_argument("--port", default="COM3", help="Arduino serial port")
-    parser.add_argument("--camera", type=int, default=2, help="Camera index")
+    parser.add_argument("--port", default="COM8", help="Arduino serial port")
+    parser.add_argument("--camera", type=int, default=1, help="Camera index")
     parser.add_argument(
         "--rotate",
         type=int,
@@ -52,7 +52,7 @@ def main():
     print("===========================================\n")
 
     try:
-        system = TrackingSystem(camera_index=args.camera, camera_rotate=args.rotate)
+        system = TrackingSystem(camera_index=args.camera, camera_rotate=args.rotate, arduino_port=args.port)
         system.run()
     except KeyboardInterrupt:
         print("\nSystem shutdown requested")

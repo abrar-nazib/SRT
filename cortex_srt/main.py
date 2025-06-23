@@ -16,14 +16,14 @@ from arduino_controller import ArduinoController
 
 
 class TrackingSystem:
-    def __init__(self, camera_index=0, camera_rotate=90):
+    def __init__(self, camera_index=0, camera_rotate=90, arduino_port="COM8"):
         self.camera = CameraManager(
             camera_index=camera_index, rotate_angle=camera_rotate
         )
         self.hud = HUDOverlay()
         self.tracker_factory = TrackerFactory()
         self.pid_controller = PIDController()
-        self.arduino_comm = ArduinoController()
+        self.arduino_comm = ArduinoController(port=arduino_port)
 
         self.current_tracker = None
         self.tracking_active = False
@@ -33,7 +33,8 @@ class TrackingSystem:
         self.last_time = time.time()
 
         # Tracking algorithms
-        self.algorithms = ["CSRT", "KCF", "MIL", "MOSSE", "MedianFlow"]
+        # self.algorithms = ["CSRT", "KCF", "MIL", "MOSSE", "MedianFlow"]
+        self.algorithms = ["CSRT", "KCF", "MIL", "MOSSE"]
         self.current_algorithm_idx = 0
 
         # Selection state
@@ -52,6 +53,7 @@ class TrackingSystem:
 
     def run(self):
         cv2.namedWindow("Military Tracking System", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("Military Tracking System", 720, 1280)
         cv2.setMouseCallback("Military Tracking System", self.mouse_callback)
 
         while True:

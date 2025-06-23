@@ -3,7 +3,7 @@ from collections import deque
 
 
 class PIDController:
-    def __init__(self, kp=0.085, ki=0.00001, kd=0.04, integral_window=100):
+    def __init__(self, kp=0.085, ki=0.0000, kd=0.04, integral_window=100):
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -17,8 +17,8 @@ class PIDController:
 
         self.last_time = time.time()
 
-        self.max_output = 5
-        self.min_output = -5
+        self.max_output = 8
+        self.min_output = -8
 
     def update(self, error_x, error_y):
         current_time = time.time()
