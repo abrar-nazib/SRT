@@ -52,7 +52,7 @@ class HUDOverlay:
         overlay = self.add_scan_lines(overlay)
 
         # Blend with original
-        return cv2.addWeighted(frame, 1, overlay, 0.5, 0)
+        return cv2.addWeighted(frame, 1, overlay, 0.8, 0)
 
     def draw_crosshair(self, frame, width, height, in_fire_zone):
         center_x, center_y = width // 2, height // 2

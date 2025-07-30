@@ -52,7 +52,9 @@ def main():
     print("===========================================\n")
 
     try:
-        system = TrackingSystem(camera_index=args.camera, camera_rotate=args.rotate, arduino_port=args.port)
+        system = TrackingSystem(
+            camera_index=args.camera, camera_rotate=args.rotate, arduino_port=args.port
+        )
         system.run()
     except KeyboardInterrupt:
         print("\nSystem shutdown requested")
